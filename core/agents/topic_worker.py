@@ -225,8 +225,9 @@ class TopicWorker:
             return total
 
     def _write_topic_card(self, topic_label: str, msg: MessageRecord) -> None:
-        """Write a minimal Obsidian markdown card for a new topic segment."""
+        """Write an Obsidian topic card with frontmatter and URL wikilinks."""
         import os
+        import re as _re
 
         if self.obsidian_vault is None:
             return
@@ -234,13 +235,47 @@ class TopicWorker:
         os.makedirs(topics_dir, exist_ok=True)
         safe_label = topic_label.replace("/", "_")
         path = os.path.join(topics_dir, f"{safe_label}.md")
-        if not os.path.exists(path):
-            ts = msg.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(f"# {topic_label}\n\n")
-                f.write(f"- channel: {msg.channel_id}\n")
-                f.write(f"- started_at: {ts}\n")
-                f.write(f"- first_message: {msg.message_id}\n")
+        if os.path.exists(path):
+            return
+
+        date = msg.created_at.strftime("%Y-%m-%d")
+        ts = msg.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        # Resolve link titles for proper [[wikilinks]]
+        link_names: dict[str, str] = {}
+        if msg.urls:
+            from core.storage.db import LinkRecord
+            with Session(self.db._engine) as s:
+                for rec in s.scalars(select(LinkRecord).where(LinkRecord.url.in_(msg.urls))):
+                    if rec.title:
+                        slug = _re.sub(r"[^a-z0-9]+", "-", rec.title.lower()).strip("-")[:80]
+                        link_names[rec.url] = slug
+
+        lines = [
+            "---",
+            f"date: {date}",
+            f"topic: {topic_label}",
+            f"channel: {msg.channel_id}",
+            f"started_at: {ts}",
+            "tags:",
+            "  - voile/topic",
+            "---",
+            "",
+            f"# {topic_label}",
+            "",
+            f"> {msg.content}",
+            "",
+        ]
+
+        if msg.urls:
+            lines += ["## Related Links", ""]
+            for url in msg.urls[:10]:
+                name = link_names.get(url)
+                lines.append(f"- [[{name}]]" if name else f"- {url}")
+            lines.append("")
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
 
     def run_forever(self, sleep: float = 5.0) -> None:
         while True:
