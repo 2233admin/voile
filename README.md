@@ -58,25 +58,29 @@ voile/
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| 1 | Message ingestion + storage foundation | In Progress |
-| 2 | Analysis and archiving pipeline | Todo |
-| 3 | Persona, decision tracking, CI/CD | Todo |
+| 1 | Message ingestion + storage foundation | Done |
+| 2 | Analysis and archiving pipeline | Done |
+| 3 | Persona, decision tracking, CI/CD | In Progress |
 
 ## Quick start
 
 ```bash
-# Python core
+# 1. Copy env template and set your Obsidian vault path
+cp .env.example .env
+# edit .env: set OBSIDIAN_HOST_PATH
+
+# 2. Start core stack (Redis, Postgres, Rust gRPC, Go gateway, Python workers)
+docker compose up -d
+
+# 3. (Optional) QQ login via Lagrange.OneBot
+#    Fill in your QQ number in lagrange/appsettings.json (Uin field)
+docker compose --profile qq up -d
+
+# Dev: run tests + linters
 pip install -e ".[dev]"
 pytest
-
-# Go gateway
-cd gateway && go build ./...
-
-# Rust kernel
-cd kernel && cargo test
-
-# Full stack (dev)
-docker compose up redis postgres
+ruff check core/ plugins/ tests/
+mypy core/
 ```
 
 ## Dependencies
