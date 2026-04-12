@@ -22,10 +22,13 @@ def main() -> None:
     parser.add_argument("--obsidian", default=os.environ.get("VOILE_OBSIDIAN_VAULT"))
     parser.add_argument("--cleaner", default=os.environ.get("VOILE_CLEANER_ADDR", "localhost:50051"),
                         help="Rust cleaner gRPC addr (empty string to disable)")
+    parser.add_argument("--ann", default=os.environ.get("VOILE_ANN_ADDR", "localhost:50052"),
+                        help="Rust ann gRPC addr (empty string to disable)")
     parser.add_argument("--channel", default=None, help="Limit topic worker to one channel_id")
     args = parser.parse_args()
 
     cleaner_addr: str | None = args.cleaner if args.cleaner else None
+    ann_addr: str | None = args.ann if args.ann else None
 
     from core.storage.db import Database
     from core.agents.sentiment_worker import SentimentWorker
@@ -39,11 +42,12 @@ def main() -> None:
     log.info("Redis: %s", args.redis)
     log.info("Obsidian vault: %s", args.obsidian or "(disabled)")
     log.info("Cleaner: %s", cleaner_addr or "(disabled)")
+    log.info("ANN: %s", ann_addr or "(disabled)")
 
     workers: list[tuple[str, object]] = [
         ("consumer", RedisConsumer(db, redis_url=args.redis, cleaner_addr=cleaner_addr)),
         ("sentiment", SentimentWorker(db, obsidian_vault=args.obsidian)),
-        ("topic", TopicWorker(db, channel_id=args.channel, obsidian_vault=args.obsidian)),
+        ("topic", TopicWorker(db, channel_id=args.channel, obsidian_vault=args.obsidian, ann_addr=ann_addr)),
         ("links", LinkArchiver(db, redis_url=args.redis, obsidian_vault=args.obsidian)),
     ]
 

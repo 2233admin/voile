@@ -1,6 +1,7 @@
 """XAR-18: Topic drift detection worker."""
 from __future__ import annotations
 
+import logging
 import math
 import time
 from typing import Any
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from core.storage.db import Database, MessageRecord, MessageTopic
 
 SIMILARITY_THRESHOLD = 0.5  # below this = topic drift
+
+logger = logging.getLogger(__name__)
 
 
 def _try_import_sentence_transformers() -> Any:
@@ -27,12 +30,17 @@ class TopicWorker:
         db: Database,
         channel_id: str | None = None,
         obsidian_vault: str | None = None,
+        ann_addr: str | None = None,
     ) -> None:
         self.db = db
         self.channel_id = channel_id
         self.obsidian_vault = obsidian_vault
+        self.ann_addr = ann_addr
         self._model: Any = None
         self._use_st: bool | None = None  # None = not yet detected
+        self._ann_stub: Any = None
+        self._pb2: Any = None
+        self._ann_ok = False
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
         """Returns embeddings. Tries sentence-transformers, falls back to TF-IDF."""
@@ -62,6 +70,56 @@ class TopicWorker:
         if norm_a == 0.0 or norm_b == 0.0:
             return 0.0
         return dot / (norm_a * norm_b)
+
+    def _init_ann(self) -> None:
+        if self._ann_ok or self.ann_addr is None:
+            return
+        try:
+            import grpc
+            from core.gen import voile_pb2, voile_pb2_grpc
+            channel = grpc.insecure_channel(self.ann_addr)
+            self._ann_stub = voile_pb2_grpc.VectorIndexStub(channel)
+            self._pb2 = voile_pb2
+            self._ann_ok = True
+            logger.info("ann connected at %s", self.ann_addr)
+        except Exception as exc:
+            logger.debug("ann unavailable (%s), using in-process cosine", exc)
+
+    def _ann_similarity(self, embed: list[float]) -> tuple[str, float] | None:
+        """Query ann for nearest neighbour. Returns (id, score) or None."""
+        self._init_ann()
+        if not self._ann_ok or self._ann_stub is None:
+            return None
+        try:
+            resp = self._ann_stub.Search(
+                self._pb2.SearchRequest(
+                    query=self._pb2.Vector(values=embed),
+                    top_k=1,
+                    threshold=SIMILARITY_THRESHOLD,
+                )
+            )
+            if resp.results:
+                r = resp.results[0]
+                return r.id, r.score
+            return None
+        except Exception as exc:
+            logger.warning("ann search failed: %s", exc)
+            self._ann_ok = False
+            return None
+
+    def _ann_insert(self, msg_id: str, embed: list[float]) -> None:
+        if not self._ann_ok or self._ann_stub is None:
+            return
+        try:
+            self._ann_stub.Insert(
+                self._pb2.InsertRequest(
+                    id=msg_id,
+                    vector=self._pb2.Vector(values=embed),
+                )
+            )
+        except Exception as exc:
+            logger.warning("ann insert failed: %s", exc)
+            self._ann_ok = False
 
     def process_untagged(self, batch: int = 50) -> int:
         """Find messages not in message_topics, tag them. Returns count processed."""
@@ -118,7 +176,8 @@ class TopicWorker:
                         segment_start = msg.message_id
                         sim = 0.0
                     else:
-                        sim = self._cosine(prev_embed, cur_embed)
+                        ann_hit = self._ann_similarity(cur_embed)
+                        sim = ann_hit[1] if ann_hit is not None else self._cosine(prev_embed, cur_embed)
                         if sim < SIMILARITY_THRESHOLD:
                             # Topic drift
                             ts = int(msg.created_at.timestamp())
@@ -140,6 +199,7 @@ class TopicWorker:
                         created_at=msg.created_at,
                     )
                     session.add(record)
+                    self._ann_insert(msg.message_id, cur_embed)
 
                     # Write Obsidian card on new topic
                     if (
