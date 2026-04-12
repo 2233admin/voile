@@ -1,7 +1,7 @@
 """Obsidian vault writer -- XAR-22."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -24,10 +24,13 @@ class ObsidianWriter:
         """Write a link archive note to links/{slugified_title}.md"""
         if not self.vault.exists():
             return None
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         tags_yaml = "\n".join(f"  - {t}" for t in tags)
         slug = _slug(title)[:80]
-        content = f"---\nurl: {url}\ntitle: {title}\ntags:\n{tags_yaml}\narchived_at: {now}\n---\n\n# {title}\n\n{summary}\n\n[Source]({url})\n"
+        content = (
+            f"---\nurl: {url}\ntitle: {title}\ntags:\n{tags_yaml}\n"
+            f"archived_at: {now}\n---\n\n# {title}\n\n{summary}\n\n[Source]({url})\n"
+        )
         dest = self.vault / "links"
         dest.mkdir(parents=True, exist_ok=True)
         path = dest / f"{slug}.md"
@@ -41,7 +44,10 @@ class ObsidianWriter:
         slug = _slug(topic)
         filename = f"{date}-{slug}"[:80]
         blockquotes = "\n\n".join(f"> {m}" for m in messages)
-        content = f"---\ndate: {date}\ntopic: {topic}\nmessage_count: {len(messages)}\n---\n\n# {topic}\n\n{blockquotes}\n"
+        content = (
+            f"---\ndate: {date}\ntopic: {topic}\nmessage_count: {len(messages)}\n"
+            f"---\n\n# {topic}\n\n{blockquotes}\n"
+        )
         dest = self.vault / "topics"
         dest.mkdir(parents=True, exist_ok=True)
         path = dest / f"{filename}.md"
@@ -52,7 +58,7 @@ class ObsidianWriter:
         """Write/update a persona profile to personas/{user_id}.md"""
         if not self.vault.exists():
             return None
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         sections = "\n\n".join(f"## {k}\n\n{v}" for k, v in profile.items())
         content = f"---\nuser_id: {user_id}\nupdated_at: {now}\n---\n\n# {user_id}\n\n{sections}\n"
         dest = self.vault / "personas"
@@ -66,11 +72,14 @@ class ObsidianWriter:
         """Write a decision log to decisions/{date}-{slug}.md"""
         if not self.vault.exists():
             return None
-        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date = datetime.now(UTC).strftime("%Y-%m-%d")
         slug = _slug(title)
         filename = f"{date}-{slug}"[:80]
         items = "\n".join(f"- {d}" for d in discussion)
-        content = f"---\ndate: {date}\ntitle: {title}\n---\n\n# {title}\n\n## Discussion\n\n{items}\n\n## Conclusion\n\n{conclusion}\n"
+        content = (
+            f"---\ndate: {date}\ntitle: {title}\n---\n\n# {title}\n\n"
+            f"## Discussion\n\n{items}\n\n## Conclusion\n\n{conclusion}\n"
+        )
         dest = self.vault / "decisions"
         dest.mkdir(parents=True, exist_ok=True)
         path = dest / f"{filename}.md"

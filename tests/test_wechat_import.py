@@ -35,7 +35,8 @@ def _write_sqlite(rows: list[dict], path: Path) -> None:
         "CreateTime INTEGER, StrContent TEXT, StrTalker TEXT)"
     )
     conn.executemany(
-        "INSERT INTO MSG VALUES (:MsgSvrId, :Type, :IsSender, :CreateTime, :StrContent, :StrTalker)",
+        "INSERT INTO MSG VALUES "
+        "(:MsgSvrId, :Type, :IsSender, :CreateTime, :StrContent, :StrTalker)",
         rows,
     )
     conn.commit()

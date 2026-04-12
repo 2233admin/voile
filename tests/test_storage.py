@@ -1,22 +1,22 @@
 """Tests for core.storage.db (SQLite in-memory)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from core.schemas.message import Message, Platform
 from core.storage.db import Database
 
 
-def _make_msg(message_id: str = "msg-1", content: str = "hello", created_at_ts: float = 1712908800.0) -> Message:
+def _make_msg(
+    message_id: str = "msg-1", content: str = "hello", created_at_ts: float = 1712908800.0
+) -> Message:
     return Message(
         platform=Platform.QQ,
         channel_id="group-1",
         user_id="user-1",
         message_id=message_id,
         content=content,
-        created_at=datetime.fromtimestamp(created_at_ts, tz=timezone.utc),
+        created_at=datetime.fromtimestamp(created_at_ts, tz=UTC),
     )
 
 

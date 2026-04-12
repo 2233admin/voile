@@ -4,10 +4,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
-from core.schemas import Message, Platform, MessageType
+from core.schemas import Message, MessageType, Platform
 from core.storage import Database
 
 MSG_TYPE_MAP: dict[int, str] = {
@@ -56,7 +56,7 @@ def import_file(
                 message_type=MessageType(msg_type_str),
                 content=raw.get("Content", ""),
                 raw_payload=raw,
-                created_at=datetime.fromtimestamp(ts, tz=timezone.utc),
+                created_at=datetime.fromtimestamp(ts, tz=UTC),
             )
 
             if db.upsert(msg):

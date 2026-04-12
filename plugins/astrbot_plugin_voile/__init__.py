@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 # AstrBot plugin contract
 PLUGIN_NAME = "voile_sink"
@@ -53,8 +53,8 @@ async def run(event: dict, context: dict) -> None:
         content=content,
         raw_payload=event,
         created_at=datetime.fromtimestamp(
-            float(event.get("time", datetime.now(timezone.utc).timestamp())),
-            tz=timezone.utc,
+            float(event.get("time", datetime.now(UTC).timestamp())),
+            tz=UTC,
         ),
     )
 

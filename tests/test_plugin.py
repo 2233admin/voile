@@ -1,11 +1,8 @@
 """Tests for plugins.astrbot_plugin_voile."""
 from __future__ import annotations
 
-import pytest
-
 from core.storage.db import Database
 from plugins.astrbot_plugin_voile import info, run
-
 
 _QQ_EVENT = {
     "platform": "qq",

@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import math
 import time
-from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
-from sqlalchemy import select, not_, exists
 
 from core.storage.db import Database, MessageRecord, MessageTopic
 

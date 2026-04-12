@@ -6,7 +6,7 @@ extracts decision process, and writes to Obsidian decision log.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -106,7 +106,7 @@ class DecisionTracker:
         self.channel_id = channel_id
 
     def _fetch_recent_messages(self, days: int = 7) -> list[MessageRecord]:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         with Session(self.db._engine) as s:
             return list(
                 s.scalars(

@@ -1,20 +1,15 @@
 """Tests for core.agents.decision_tracker (XAR-21)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-import pytest
 
 from core.agents.decision_tracker import (
-    CONCLUSION_KW,
-    DISCUSSION_KW,
-    PROPOSAL_KW,
     DecisionTracker,
     detect_decision_segment,
 )
 from core.schemas.message import Message, Platform
 from core.storage.db import Database, MessageRecord
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -37,7 +32,7 @@ def _make_record(
     rec.message_type = "text"
     rec.content = content
     rec.raw_payload = {}
-    rec.created_at = datetime.fromtimestamp(ts, tz=timezone.utc)
+    rec.created_at = datetime.fromtimestamp(ts, tz=UTC)
     rec.urls = []
     return rec
 
@@ -55,7 +50,7 @@ def _make_msg(
         user_id=user_id,
         message_id=message_id,
         content=content,
-        created_at=datetime.fromtimestamp(ts, tz=timezone.utc),
+        created_at=datetime.fromtimestamp(ts, tz=UTC),
     )
 
 

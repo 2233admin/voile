@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sqlite3
-from datetime import timezone, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from core.schemas.message import Message, MessageType, Platform
@@ -35,7 +35,7 @@ def _build_message(row: dict) -> Message:
         message_type=_map_type(int(row["Type"])),
         content=str(row["StrContent"]),
         raw_payload={k: row[k] for k in row},
-        created_at=datetime.fromtimestamp(int(row["CreateTime"]), tz=timezone.utc),
+        created_at=datetime.fromtimestamp(int(row["CreateTime"]), tz=UTC),
     )
 
 

@@ -2,15 +2,15 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from core.agents.topic_worker import TopicWorker
 from core.schemas.message import Message, Platform
 from core.storage.db import Database, MessageTopic
-from core.agents.topic_worker import TopicWorker, SIMILARITY_THRESHOLD
-from sqlalchemy.orm import Session
-from sqlalchemy import select
 
 
 def _make_msg(
@@ -25,7 +25,7 @@ def _make_msg(
         user_id="user-1",
         message_id=message_id,
         content=content,
-        created_at=datetime.fromtimestamp(created_at_ts, tz=timezone.utc),
+        created_at=datetime.fromtimestamp(created_at_ts, tz=UTC),
     )
 
 

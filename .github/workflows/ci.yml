@@ -21,7 +21,7 @@ jobs:
       - run: pytest -q
 
   go:
-    name: Go (vet + build)
+    name: Go (vet + build + test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,8 @@ jobs:
       - run: go vet ./...
         working-directory: gateway
       - run: go build ./...
+        working-directory: gateway
+      - run: go test ./...
         working-directory: gateway
 
   rust:

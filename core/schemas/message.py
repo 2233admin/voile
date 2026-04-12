@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -50,7 +50,7 @@ class Message(BaseModel):
     model_config = {"frozen": True}
 
     @model_validator(mode="after")
-    def auto_extract_urls(self) -> "Message":
+    def auto_extract_urls(self) -> Message:
         if not self.urls and self.content:
             object.__setattr__(self, "urls", _URL_RE.findall(self.content))
         return self
@@ -59,6 +59,5 @@ class Message(BaseModel):
     @classmethod
     def ensure_utc(cls, v: Any) -> datetime:
         if isinstance(v, int | float):
-            from datetime import timezone
-            return datetime.fromtimestamp(v, tz=timezone.utc)
+            return datetime.fromtimestamp(v, tz=UTC)
         return v

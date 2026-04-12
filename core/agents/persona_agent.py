@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.storage.db import Database, MessageRecord, MessageSentiment, MessageTopic
 from core.obsidian.writer import ObsidianWriter
+from core.storage.db import Database, MessageRecord, MessageSentiment, MessageTopic
 
 
 class PersonaAgent:
@@ -31,7 +31,7 @@ class PersonaAgent:
 
     def build_profile(self, user_id: str) -> dict:
         """Aggregate last window_days of messages for user_id into a Core profile."""
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=self.window_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=self.window_days)
 
         with Session(self.db._engine) as session:
             messages: list[MessageRecord] = list(session.scalars(
@@ -73,7 +73,7 @@ class PersonaAgent:
             for msg in messages:
                 dt = msg.created_at
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 hour_counter[dt.hour] += 1
             active_hours: list[int] = [h for h, _ in hour_counter.most_common(3)]
 

@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
 
 from core.storage.db import Database, MessageRecord, MessageSentiment
 
@@ -115,7 +115,7 @@ class SentimentWorker:
             if not rows:
                 return 0
 
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             for row in rows:
                 label, score = self._analyze(row.content)
                 session.add(MessageSentiment(

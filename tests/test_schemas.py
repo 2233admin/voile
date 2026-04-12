@@ -1,7 +1,7 @@
 """Tests for core.schemas.message (Pydantic v2)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -16,7 +16,7 @@ def _base_kwargs(**overrides) -> dict:
         "user_id": "user-1",
         "message_id": "msg-1",
         "content": "hello world",
-        "created_at": datetime(2024, 4, 12, tzinfo=timezone.utc),
+        "created_at": datetime(2024, 4, 12, tzinfo=UTC),
     }
     kwargs.update(overrides)
     return kwargs
@@ -55,7 +55,7 @@ def test_created_at_from_unix_timestamp():
     msg = Message(**_base_kwargs(created_at=1712908800))
     assert isinstance(msg.created_at, datetime)
     assert msg.created_at.tzinfo is not None
-    assert msg.created_at == datetime.fromtimestamp(1712908800, tz=timezone.utc)
+    assert msg.created_at == datetime.fromtimestamp(1712908800, tz=UTC)
 
 
 def test_frozen_raises_on_mutation():

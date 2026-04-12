@@ -2,17 +2,15 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
-from types import ModuleType
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from core.schemas.message import Message, Platform
-from core.storage.db import Database, MessageRecord, MessageSentiment
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-
+from core.storage.db import Database, MessageSentiment
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -35,7 +33,7 @@ def _insert_msg(
         user_id="u1",
         message_id=message_id,
         content=content,
-        created_at=datetime.fromtimestamp(ts, tz=timezone.utc),
+        created_at=datetime.fromtimestamp(ts, tz=UTC),
     ))
 
 
@@ -45,7 +43,7 @@ def _insert_sentiment(db: Database, message_id: str, label: str, score: float = 
             message_id=message_id,
             label=label,
             score=score,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
         ))
         s.commit()
 
@@ -159,12 +157,12 @@ class TestDailyReport:
     def test_daily_report_counts(self, rules_worker):
         db = rules_worker.db
         # Insert messages on 2024-04-12
-        ts = datetime(2024, 4, 12, 10, 0, 0, tzinfo=timezone.utc).timestamp()
+        ts = datetime(2024, 4, 12, 10, 0, 0, tzinfo=UTC).timestamp()
         _insert_msg(db, "m1", "text1", channel_id="ch-1", ts=ts)
         _insert_msg(db, "m2", "text2", channel_id="ch-1", ts=ts)
         _insert_msg(db, "m3", "text3", channel_id="ch-1", ts=ts)
         # One message on a different day
-        ts2 = datetime(2024, 4, 13, 10, 0, 0, tzinfo=timezone.utc).timestamp()
+        ts2 = datetime(2024, 4, 13, 10, 0, 0, tzinfo=UTC).timestamp()
         _insert_msg(db, "m4", "text4", channel_id="ch-1", ts=ts2)
 
         # Manually insert sentiments
@@ -187,7 +185,7 @@ class TestDailyReport:
 
     def test_daily_report_wrong_channel(self, rules_worker):
         db = rules_worker.db
-        ts = datetime(2024, 4, 12, 10, 0, 0, tzinfo=timezone.utc).timestamp()
+        ts = datetime(2024, 4, 12, 10, 0, 0, tzinfo=UTC).timestamp()
         _insert_msg(db, "m1", "很好", channel_id="ch-A", ts=ts)
         _insert_sentiment(db, "m1", "positive")
 

@@ -2,14 +2,10 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from core.importers.qq_import import import_file
 from core.storage import Database
-
 
 SAMPLE_RECORDS = [
     {

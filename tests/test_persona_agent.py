@@ -1,13 +1,10 @@
 """Tests for XAR-20: PersonaAgent."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 
 from core.agents.persona_agent import PersonaAgent
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -18,7 +15,7 @@ def _make_msg(user_id: str, message_id: str, content: str, hour: int = 10) -> Ma
     msg.user_id = user_id
     msg.message_id = message_id
     msg.content = content
-    msg.created_at = datetime(2024, 1, 15, hour, 0, 0, tzinfo=timezone.utc)
+    msg.created_at = datetime(2024, 1, 15, hour, 0, 0, tzinfo=UTC)
     msg.channel_id = "ch1"
     return msg
 

@@ -5,11 +5,11 @@ import json
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from core.storage.db import Database, LinkRecord
 
@@ -83,7 +83,7 @@ class LinkArchiver:
         title = meta.get("title", "")
         summary = meta.get("summary", "")
         tags = meta.get("tags", [])
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         with Session(self.db._engine) as s:
             existing = s.scalar(select(LinkRecord).where(LinkRecord.url == url))
@@ -106,7 +106,9 @@ class LinkArchiver:
         if self.obsidian_vault is not None:
             try:
                 from core.obsidian import ObsidianWriter
-                ObsidianWriter(self.obsidian_vault).write_link(url=url, title=title, summary=summary, tags=tags)
+                ObsidianWriter(self.obsidian_vault).write_link(
+                    url=url, title=title, summary=summary, tags=tags
+                )
             except Exception:
                 pass
 

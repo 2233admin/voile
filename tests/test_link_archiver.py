@@ -1,14 +1,11 @@
 """Tests for core.agents.link_archiver (XAR-17)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
-
-from core.storage.db import Database, LinkRecord
-from core.agents.link_archiver import LinkArchiver
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from core.agents.link_archiver import LinkArchiver
+from core.storage.db import Database, LinkRecord
 
 
 def _make_db() -> Database:
