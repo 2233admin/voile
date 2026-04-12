@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-
-from sqlalchemy import JSON, DateTime, String, Text, create_engine, select
 from typing import Any
 
+from sqlalchemy import JSON, DateTime, String, Text, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 from core.schemas import Message

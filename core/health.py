@@ -11,7 +11,6 @@ import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Dict
 
 _start_time = time.monotonic()
 
@@ -22,7 +21,7 @@ class _HealthHandler(BaseHTTPRequestHandler):
     """Handles GET /health; rejects everything else with 404."""
 
     # Injected by HealthServer before serving
-    threads: Dict[str, threading.Thread] = {}
+    threads: dict[str, threading.Thread] = {}
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path != "/health":
@@ -58,10 +57,13 @@ class HealthServer:
 
     def __init__(
         self,
-        threads: Dict[str, threading.Thread],
+        threads: dict[str, threading.Thread],
         port: int | None = None,
     ) -> None:
-        self.port = port if port is not None else int(os.environ.get("VOILE_HEALTH_PORT", PORT_DEFAULT))
+        self.port = (
+            port if port is not None
+            else int(os.environ.get("VOILE_HEALTH_PORT", PORT_DEFAULT))
+        )
 
         # Build a handler class with threads bound via class attribute so
         # BaseHTTPRequestHandler (which instantiates per-request) can reach them

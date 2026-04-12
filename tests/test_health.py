@@ -5,7 +5,7 @@ import json
 import threading
 import time
 import urllib.request
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 

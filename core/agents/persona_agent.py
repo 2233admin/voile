@@ -4,11 +4,10 @@ from __future__ import annotations
 import time
 from collections import Counter
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from typing import Any
 
 from core.obsidian.writer import ObsidianWriter
 from core.storage.db import Database, MessageRecord, MessageSentiment, MessageTopic

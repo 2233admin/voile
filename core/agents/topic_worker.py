@@ -77,9 +77,10 @@ class TopicWorker:
             return
         try:
             import grpc
+
             from core.gen import voile_pb2, voile_pb2_grpc
             channel = grpc.insecure_channel(self.ann_addr)
-            self._ann_stub = voile_pb2_grpc.VectorIndexStub(channel)
+            self._ann_stub = voile_pb2_grpc.VectorIndexStub(channel)  # type: ignore[no-untyped-call]
             self._pb2 = voile_pb2
             self._ann_ok = True
             logger.info("ann connected at %s", self.ann_addr)
@@ -181,7 +182,10 @@ class TopicWorker:
                         sim = 0.0
                     else:
                         ann_hit = self._ann_similarity(cur_embed)
-                        sim = ann_hit[1] if ann_hit is not None else self._cosine(prev_embed, cur_embed)
+                        sim = (
+                            ann_hit[1] if ann_hit is not None
+                            else self._cosine(prev_embed, cur_embed)
+                        )
                         if sim < SIMILARITY_THRESHOLD:
                             # Topic drift
                             ts = int(msg.created_at.timestamp())

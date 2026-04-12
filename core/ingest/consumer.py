@@ -108,10 +108,11 @@ class RedisConsumer:
             return
         try:
             import grpc
+
             from core.gen import voile_pb2, voile_pb2_grpc
 
             channel = grpc.insecure_channel(self.cleaner_addr)
-            self._stub = voile_pb2_grpc.TextCleanerStub(channel)
+            self._stub = voile_pb2_grpc.TextCleanerStub(channel)  # type: ignore[no-untyped-call]
             self._pb2 = voile_pb2
             self._cleaner_ok = True
             logger.info("cleaner connected at %s", self.cleaner_addr)

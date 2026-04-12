@@ -6,7 +6,6 @@ import csv
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
-
 from typing import Any
 
 from core.schemas.message import Message, MessageType, Platform

@@ -7,11 +7,10 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from typing import Any
 
 from core.storage.db import Database, LinkRecord
 

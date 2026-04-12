@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from sqlalchemy.orm import Session
 
 from core.query import (
@@ -108,7 +107,7 @@ def test_recent_messages_limit():
     _seed_messages(db, [_msg(f"m{i}", f"msg{i}", offset_seconds=i) for i in range(10)])
     result = recent_messages(db, "ch-1", limit=3)
     # Only 3 lines of content
-    lines = [l for l in result.splitlines() if "user-1:" in l]
+    lines = [ln for ln in result.splitlines() if "user-1:" in ln]
     assert len(lines) == 3
 
 

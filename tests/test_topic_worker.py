@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import select
