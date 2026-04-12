@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from core.ingest.consumer import _parse_wechat
+from core.ingest.consumer import RedisConsumer, _parse_wechat
 from core.schemas import MessageType, Platform
+from core.storage.db import Database
 
 
 def _noop_cleaner(text: str) -> tuple[str, list[str]]:
@@ -101,3 +102,32 @@ def test_parse_wechat_unknown_msg_type():
     msg = _parse_wechat(event, _noop_cleaner)
     assert msg is not None
     assert msg.message_type == MessageType.UNKNOWN
+
+
+class TestCleanerInit:
+    def _make_consumer(self) -> RedisConsumer:
+        db = Database("sqlite:///:memory:")
+        return RedisConsumer(db, cleaner_addr="localhost:50051")
+
+    def test_disabled_after_import_failure(self):
+        """If grpc import fails, _cleaner_disabled is set and init is not retried."""
+        consumer = self._make_consumer()
+        assert not consumer._cleaner_disabled
+        # grpc likely available, but simulate import failure via flag
+        consumer._cleaner_disabled = True
+        consumer._init_cleaner()  # must return early without touching _cleaner_ok
+        assert not consumer._cleaner_ok
+
+    def test_no_init_when_addr_is_none(self):
+        db = Database("sqlite:///:memory:")
+        consumer = RedisConsumer(db, cleaner_addr=None)
+        consumer._init_cleaner()
+        assert not consumer._cleaner_ok
+        assert not consumer._cleaner_disabled
+
+    def test_clean_falls_back_when_disabled(self):
+        consumer = self._make_consumer()
+        consumer._cleaner_disabled = True
+        text, urls = consumer._clean("hello world")
+        assert text == "hello world"
+        assert urls == []

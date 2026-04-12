@@ -101,9 +101,10 @@ class RedisConsumer:
         self._stub: Any = None
         self._pb2: Any = None
         self._cleaner_ok = False
+        self._cleaner_disabled = False  # set on import failure; blocks init retries
 
     def _init_cleaner(self) -> None:
-        if self._cleaner_ok or self.cleaner_addr is None:
+        if self._cleaner_ok or self._cleaner_disabled or self.cleaner_addr is None:
             return
         try:
             import grpc
@@ -116,6 +117,7 @@ class RedisConsumer:
             logger.info("cleaner connected at %s", self.cleaner_addr)
         except Exception as exc:
             logger.debug("cleaner unavailable (%s), using regex fallback", exc)
+            self._cleaner_disabled = True
 
     def _clean(self, text: str) -> tuple[str, list[str]]:
         """Returns (cleaned_text, urls). Tries Rust cleaner, falls back to identity."""
