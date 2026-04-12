@@ -18,15 +18,15 @@ services:
 
   cleaner:
     build:
-      context: ./kernel/cleaner
-      dockerfile: Dockerfile
+      context: ./kernel
+      dockerfile: cleaner/Dockerfile
     ports: ["50051:50051"]
     restart: unless-stopped
 
   ann:
     build:
-      context: ./kernel/ann
-      dockerfile: Dockerfile
+      context: ./kernel
+      dockerfile: ann/Dockerfile
     ports: ["50052:50052"]
     restart: unless-stopped
 

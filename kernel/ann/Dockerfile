@@ -1,12 +1,13 @@
-FROM rust:1.78-slim AS builder
+FROM rust:slim AS builder
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock* build.rs ./
-COPY src/ src/
-COPY ../proto/ /proto/
+COPY Cargo.toml Cargo.lock* ./
+COPY cleaner/ cleaner/
+COPY ann/ ann/
+COPY proto/ proto/
 
 RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
-RUN cargo build --release --bin ann
+RUN cargo build --release --package voile-ann --bin ann
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*

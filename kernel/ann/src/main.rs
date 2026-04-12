@@ -66,7 +66,7 @@ impl VectorIndex for IndexService {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
-    let addr = "[::1]:50052".parse()?;
+    let addr = "[::]:50052".parse()?;
     info!("VectorIndex gRPC listening on {addr}");
     Server::builder()
         .add_service(VectorIndexServer::new(IndexService::new()))

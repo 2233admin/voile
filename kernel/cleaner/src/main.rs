@@ -52,7 +52,7 @@ impl TextCleaner for CleanerService {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
-    let addr = "[::1]:50051".parse()?;
+    let addr = "[::]:50051".parse()?;
     info!("TextCleaner gRPC listening on {addr}");
     Server::builder()
         .add_service(TextCleanerServer::new(CleanerService::default()))
