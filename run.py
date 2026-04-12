@@ -32,6 +32,7 @@ def main() -> None:
     from core.agents.topic_worker import TopicWorker
     from core.agents.link_archiver import LinkArchiver
     from core.ingest.consumer import RedisConsumer
+    from core.health import HealthServer
 
     db = Database(args.db)
     log.info("DB: %s", args.db)
@@ -47,11 +48,17 @@ def main() -> None:
     ]
 
     threads = []
+    threads_dict: dict[str, threading.Thread] = {}
     for name, worker in workers:
         t = threading.Thread(target=worker.run_forever, name=name, daemon=True)  # type: ignore[union-attr]
         t.start()
         threads.append(t)
+        threads_dict[name] = t
         log.info("started %s", name)
+
+    health = HealthServer(threads_dict)
+    health.start()
+    log.info("started health on port %d", health.port)
 
     log.info("all workers running -- Ctrl+C to stop")
     try:

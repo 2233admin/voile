@@ -10,6 +10,14 @@ from typing import Any
 from core.schemas import Message, MessageType, Platform
 from core.storage.db import Database
 
+_WECHAT_TYPE_MAP: dict[str, MessageType] = {
+    "text": MessageType.TEXT,
+    "image": MessageType.IMAGE,
+    "voice": MessageType.VOICE,
+    "video": MessageType.VIDEO,
+    "link": MessageType.UNKNOWN,
+}
+
 logger = logging.getLogger(__name__)
 
 QUEUE_KEY = "voile:raw_queue"
@@ -43,6 +51,37 @@ def _parse_onebot(event: dict[str, Any], cleaner_fn: Any) -> Message | None:
         raw_payload=event,
         created_at=datetime.fromtimestamp(
             float(event.get("time", datetime.now(UTC).timestamp())), tz=UTC
+        ),
+    )
+
+
+def _parse_wechat(event: dict[str, Any], cleaner_fn: Any) -> Message | None:
+    """Parse a WeFlow WeChat event. Returns None if content is empty after cleaning."""
+    channel_id = str(
+        event.get("to_user") or event.get("group_id") or "dm"
+    )
+    user_id = str(event.get("from_user", "unknown"))
+    message_id = str(event.get("id", ""))
+
+    raw_type = event.get("msg_type", "text")
+    msg_type = _WECHAT_TYPE_MAP.get(str(raw_type), MessageType.UNKNOWN)
+
+    raw_content: str = event.get("content", "")
+    content, urls = cleaner_fn(raw_content)
+    if not content:
+        return None
+
+    return Message(
+        platform=Platform.WECHAT,
+        channel_id=channel_id,
+        user_id=user_id,
+        message_id=message_id,
+        message_type=msg_type,
+        content=content,
+        urls=urls,
+        raw_payload=event,
+        created_at=datetime.fromtimestamp(
+            float(event.get("create_time", datetime.now(UTC).timestamp())), tz=UTC
         ),
     )
 
@@ -105,6 +144,8 @@ class RedisConsumer:
 
         for event in events:
             msg = _parse_onebot(event, self._clean)
+            if msg is None and ("from_user" in event or "msg_type" in event):
+                msg = _parse_wechat(event, self._clean)
             if msg is None:
                 continue
             if self.db.upsert(msg):

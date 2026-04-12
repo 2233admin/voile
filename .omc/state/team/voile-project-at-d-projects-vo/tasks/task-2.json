@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "does not touch the others' files. Coordinate via mailbox to avoid overlap. TASK-",
+  "description": "does not touch the others' files. Coordinate via mailbox to avoid overlap. TASK-1 (core/ingest/consumer.py): Add WeChat/WeFlow format parsing. WeFlow pushes JSON arrays of messages. Each message has fields: id, from_user, to_user, content, create_time, msg_type (text/image/voice/video/link). Add _parse_wechat(event, cleaner_fn) -> Message|None alongside _parse_onebot. Handle the WeFlow array batch in _handle(). Add tests in tests/test_consumer.py. TASK-2 (core/health.py + run.py): Add a lightweight HTTP health endpoint. Create core/health.py that starts a plain http.server on port 8765 (env VOILE_HEALTH_PORT). Returns JSON: {status: ok, workers: {consumer: bool, sentiment: bool, topic: bool, links: bool}, uptime_s: float}. Wire into run.py as a 5th daemon thread. Add tests in tests/test_health.py. TASK-3 (tests/test_query.py): Write pytest unit tests for every function in core/query.py (recent_messages, topic_summary, sentiment_summary, archived_links, find_decisions, channel_stats, list_channels). Use in-memory SQLite (sqlite:///:memory:). Seed test data directly via SQLAlchemy. Target: 90%+ coverage of core/query.py. Run pytest tests/test_query.py",
+  "status": "pending",
+  "owner": null,
+  "result": null,
+  "created_at": "2026-04-12T14:12:37.811Z"
+}
