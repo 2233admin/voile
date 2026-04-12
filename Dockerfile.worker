@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml .
+COPY core/ core/
+COPY plugins/ plugins/
+COPY run.py .
+
+RUN pip install --no-cache-dir -e .
+
+ENV VOILE_DB_URL=postgresql://voile:voile_dev@postgres:5432/voile
+ENV VOILE_REDIS_URL=redis://redis:6379/0
+ENV VOILE_CLEANER_ADDR=cleaner:50051
+ENV VOILE_ANN_ADDR=ann:50052
+
+CMD ["python", "run.py"]

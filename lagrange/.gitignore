@@ -1,0 +1,4 @@
+# Ignore Lagrange session data / keystore — keep appsettings.json template
+*.db
+keystore/
+logs/

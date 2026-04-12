@@ -50,9 +50,35 @@ services:
       args:
         CMD: qq
     environment:
-      ONEBOT_WS: ws://host.docker.internal:3001
+      # Default points at lagrange service; override with ONEBOT_WS=ws://host:3001 if using external bot
+      ONEBOT_WS: ${ONEBOT_WS:-ws://lagrange:3001}
       DOWNSTREAM: http://gateway-api:8080/ingest/qq
     depends_on: [gateway-api]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      VOILE_DB_URL: postgresql://voile:voile_dev@postgres:5432/voile
+      VOILE_REDIS_URL: redis://redis:6379/0
+      VOILE_CLEANER_ADDR: cleaner:50051
+      VOILE_ANN_ADDR: ann:50052
+      VOILE_OBSIDIAN_VAULT: /obsidian
+    volumes:
+      # Set OBSIDIAN_HOST_PATH to your vault directory, e.g. E:/knowledge
+      - ${OBSIDIAN_HOST_PATH:-./obsidian-vault}:/obsidian
+    depends_on: [redis, postgres, cleaner, ann]
+    restart: unless-stopped
+
+  # Optional QQ bot -- start with: docker compose --profile qq up
+  lagrange:
+    image: lagrangedev/lagrange.onebot:latest
+    profiles: [qq]
+    volumes:
+      - ./lagrange:/app/data
+    ports: ["3001:3001"]
     restart: unless-stopped
 
 volumes:
