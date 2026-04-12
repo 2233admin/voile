@@ -204,6 +204,7 @@ class TestAnnSimilarity:
         db = Database("sqlite:///:memory:")
         worker = TopicWorker(db, ann_addr="localhost:50052")
         worker._ann_ok = False
+        worker._ann_disabled = True  # prevent _init_ann retry
         assert worker._ann_similarity([0.1, 0.2]) is None
 
     def test_returns_id_and_score(self):
@@ -226,6 +227,7 @@ class TestAnnSimilarity:
         result = worker._ann_similarity([0.1, 0.2])
         assert result is None
         assert worker._ann_ok is False
+        assert worker._ann_disabled is True
 
 
 class TestAnnInsert:
@@ -250,6 +252,7 @@ class TestAnnInsert:
         worker = _worker_with_ann(stub)
         worker._ann_insert("msg-x", [0.3, 0.4])
         assert worker._ann_ok is False
+        assert worker._ann_disabled is True
 
 
 class TestProcessUntaggedWithAnn:

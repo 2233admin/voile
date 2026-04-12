@@ -41,6 +41,7 @@ class TopicWorker:
         self._ann_stub: Any = None
         self._pb2: Any = None
         self._ann_ok = False
+        self._ann_disabled = False  # set on first failure; blocks all retries
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
         """Returns embeddings. Tries sentence-transformers, falls back to TF-IDF."""
@@ -72,7 +73,7 @@ class TopicWorker:
         return dot / (norm_a * norm_b)
 
     def _init_ann(self) -> None:
-        if self._ann_ok or self.ann_addr is None:
+        if self._ann_ok or self._ann_disabled or self.ann_addr is None:
             return
         try:
             import grpc
@@ -84,6 +85,7 @@ class TopicWorker:
             logger.info("ann connected at %s", self.ann_addr)
         except Exception as exc:
             logger.debug("ann unavailable (%s), using in-process cosine", exc)
+            self._ann_disabled = True
 
     def _ann_similarity(self, embed: list[float]) -> tuple[str, float] | None:
         """Query ann for nearest neighbour. Returns (id, score) or None."""
@@ -105,6 +107,7 @@ class TopicWorker:
         except Exception as exc:
             logger.warning("ann search failed: %s", exc)
             self._ann_ok = False
+            self._ann_disabled = True
             return None
 
     def _ann_insert(self, msg_id: str, embed: list[float]) -> None:
@@ -120,6 +123,7 @@ class TopicWorker:
         except Exception as exc:
             logger.warning("ann insert failed: %s", exc)
             self._ann_ok = False
+            self._ann_disabled = True
 
     def process_untagged(self, batch: int = 50) -> int:
         """Find messages not in message_topics, tag them. Returns count processed."""
