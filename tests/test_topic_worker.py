@@ -379,8 +379,6 @@ class TestFinalizeTopicCard:
         _force_tfidf(worker)
 
         worker.process_untagged(batch=50)
-        cards_first = list((tmp_path / "topics").glob("*.md"))
-        mtime_first = cards_first[0].stat().st_mtime
 
         # Add a second message and re-process (first is already tagged; only msg-2 new)
         from core.schemas.message import Message, Platform
