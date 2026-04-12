@@ -50,7 +50,7 @@ services:
       args:
         CMD: qq
     environment:
-      NAPCAT_WS: ws://host.docker.internal:3001
+      ONEBOT_WS: ws://host.docker.internal:3001
       DOWNSTREAM: http://gateway-api:8080/ingest/qq
     depends_on: [gateway-api]
     restart: unless-stopped

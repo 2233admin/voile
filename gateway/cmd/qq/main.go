@@ -27,9 +27,16 @@ type OneBotEvent struct {
 }
 
 func main() {
-	napcat := flag.String("napcat", "ws://127.0.0.1:3001", "NapCatQQ OneBot v11 WS endpoint")
-	downstream := flag.String("downstream", "http://127.0.0.1:8080/ingest/qq", "Python ingest API")
+	napcat := flag.String("onebot-ws", "ws://127.0.0.1:3001", "OneBot v11 WS endpoint (NapCat/Lagrange)")
+	downstream := flag.String("downstream", "http://127.0.0.1:8080/ingest/qq", "Ingest API endpoint")
 	flag.Parse()
+
+	if v := os.Getenv("ONEBOT_WS"); v != "" {
+		*napcat = v
+	}
+	if v := os.Getenv("DOWNSTREAM"); v != "" {
+		*downstream = v
+	}
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
