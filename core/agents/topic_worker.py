@@ -187,7 +187,9 @@ class TopicWorker:
                             else self._cosine(prev_embed, cur_embed)
                         )
                         if sim < SIMILARITY_THRESHOLD:
-                            # Topic drift
+                            # Topic drift: finalize card for the closing topic
+                            if prev_label is not None and self.obsidian_vault is not None:
+                                self._finalize_topic_card(prev_label, ch_id, session)
                             ts = int(msg.created_at.timestamp())
                             topic_label = f"topic_{ts}"
                             segment_start = msg.message_id
@@ -195,7 +197,6 @@ class TopicWorker:
                             # Continue current topic
                             assert prev_label is not None
                             topic_label = prev_label
-                            # segment_start: find from last tagged that shares this label
                             segment_start = prev_msg_id or msg.message_id
 
                     record = MessageTopic(
@@ -209,71 +210,105 @@ class TopicWorker:
                     session.add(record)
                     self._ann_insert(msg.message_id, cur_embed)
 
-                    # Write Obsidian card on new topic
-                    if (
-                        self.obsidian_vault is not None
-                        and (prev_label is None or topic_label != prev_label)
-                    ):
-                        self._write_topic_card(topic_label, msg)
-
                     prev_embed = cur_embed
                     prev_label = topic_label
                     prev_msg_id = msg.message_id
                     total += 1
 
+                # Write / refresh card for still-open topic at end of batch
+                if prev_label is not None and self.obsidian_vault is not None:
+                    self._finalize_topic_card(prev_label, ch_id, session)
+
             session.commit()
             return total
 
-    def _write_topic_card(self, topic_label: str, msg: MessageRecord) -> None:
-        """Write an Obsidian topic card with frontmatter and URL wikilinks."""
+    def _finalize_topic_card(self, topic_label: str, channel_id: str, session: Session) -> None:
+        """Write/overwrite Obsidian topic card with all messages when topic closes."""
         import os
         import re as _re
 
         if self.obsidian_vault is None:
             return
-        topics_dir = os.path.join(self.obsidian_vault, "topics")
-        os.makedirs(topics_dir, exist_ok=True)
-        safe_label = topic_label.replace("/", "_")
-        path = os.path.join(topics_dir, f"{safe_label}.md")
-        if os.path.exists(path):
+
+        # autoflush sees uncommitted batch records
+        msg_ids = list(session.scalars(
+            select(MessageTopic.message_id)
+            .where(MessageTopic.topic_label == topic_label)
+            .where(MessageTopic.channel_id == channel_id)
+        ))
+        if not msg_ids:
             return
 
-        date = msg.created_at.strftime("%Y-%m-%d")
-        ts = msg.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+        messages = list(session.scalars(
+            select(MessageRecord)
+            .where(MessageRecord.message_id.in_(msg_ids))
+            .order_by(MessageRecord.created_at.asc())
+        ))
+        if not messages:
+            return
 
-        # Resolve link titles for proper [[wikilinks]]
+        first = messages[0]
+        last = messages[-1]
+        participants = sorted({m.user_id for m in messages if m.user_id})
+        all_urls: list[str] = []
+        seen_urls: set[str] = set()
+        for m in messages:
+            for u in (m.urls or []):
+                if u not in seen_urls:
+                    all_urls.append(u)
+                    seen_urls.add(u)
+
+        # Resolve link titles for [[wikilinks]]
         link_names: dict[str, str] = {}
-        if msg.urls:
+        if all_urls:
             from core.storage.db import LinkRecord
-            with Session(self.db._engine) as s:
-                for rec in s.scalars(select(LinkRecord).where(LinkRecord.url.in_(msg.urls))):
-                    if rec.title:
-                        slug = _re.sub(r"[^a-z0-9]+", "-", rec.title.lower()).strip("-")[:80]
-                        link_names[rec.url] = slug
+            for rec in session.scalars(select(LinkRecord).where(LinkRecord.url.in_(all_urls))):
+                if rec.title:
+                    slug = _re.sub(r"[^a-z0-9]+", "-", rec.title.lower()).strip("-")[:80]
+                    link_names[rec.url] = slug
+
+        date = first.created_at.strftime("%Y-%m-%d")
+        started_at = first.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+        ended_at = last.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
 
         lines = [
             "---",
             f"date: {date}",
             f"topic: {topic_label}",
-            f"channel: {msg.channel_id}",
-            f"started_at: {ts}",
+            f"channel: {channel_id}",
+            f"started_at: {started_at}",
+            f"ended_at: {ended_at}",
+            f"message_count: {len(messages)}",
+            f"participants: [{', '.join(participants)}]",
             "tags:",
             "  - voile/topic",
             "---",
             "",
             f"# {topic_label}",
             "",
-            f"> {msg.content}",
+            "## Messages",
             "",
         ]
 
-        if msg.urls:
+        for m in messages[:20]:
+            ts = m.created_at.strftime("%H:%M")
+            speaker = m.user_id or "unknown"
+            lines.append(f"> **{speaker}** {ts}: {m.content}")
+        if len(messages) > 20:
+            lines.append(f"> *...{len(messages) - 20} more messages*")
+        lines.append("")
+
+        if all_urls:
             lines += ["## Related Links", ""]
-            for url in msg.urls[:10]:
+            for url in all_urls[:10]:
                 name = link_names.get(url)
                 lines.append(f"- [[{name}]]" if name else f"- {url}")
             lines.append("")
 
+        topics_dir = os.path.join(self.obsidian_vault, "topics")
+        os.makedirs(topics_dir, exist_ok=True)
+        safe_label = topic_label.replace("/", "_")
+        path = os.path.join(topics_dir, f"{safe_label}.md")
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
