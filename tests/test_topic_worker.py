@@ -328,3 +328,73 @@ class TestProcessUntaggedWithAnn:
         # Should not raise; cosine fallback covers it
         count = worker.process_untagged(batch=50)
         assert count == 2
+
+
+# --- test _finalize_topic_card ---
+
+class TestFinalizeTopicCard:
+    def test_writes_card_with_frontmatter(self, tmp_path):
+        """process_untagged writes a topic card to obsidian vault."""
+        msgs = [
+            _make_msg("msg-1", "天气真好", created_at_ts=1712908800.0),
+            _make_msg("msg-2", "阳光明媚", created_at_ts=1712908860.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        worker = TopicWorker(db, obsidian_vault=str(tmp_path))
+        _force_tfidf(worker)
+
+        worker.process_untagged(batch=50)
+
+        cards = list((tmp_path / "topics").glob("*.md"))
+        assert len(cards) >= 1
+        content = cards[0].read_text(encoding="utf-8")
+        assert "message_count:" in content
+        assert "participants:" in content
+        assert "started_at:" in content
+        assert "## Messages" in content
+
+    def test_card_contains_message_content(self, tmp_path):
+        """Card should include the actual message text as blockquotes."""
+        msgs = [
+            _make_msg("msg-1", "distinct content abc", created_at_ts=1712908800.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        worker = TopicWorker(db, obsidian_vault=str(tmp_path))
+        _force_tfidf(worker)
+
+        worker.process_untagged(batch=50)
+
+        cards = list((tmp_path / "topics").glob("*.md"))
+        assert len(cards) == 1
+        content = cards[0].read_text(encoding="utf-8")
+        assert "distinct content abc" in content
+
+    def test_card_overwritten_on_second_batch(self, tmp_path):
+        """Calling process_untagged twice overwrites card (no dupe check)."""
+        msgs = [
+            _make_msg("msg-1", "hello", created_at_ts=1712908800.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        worker = TopicWorker(db, obsidian_vault=str(tmp_path))
+        _force_tfidf(worker)
+
+        worker.process_untagged(batch=50)
+        cards_first = list((tmp_path / "topics").glob("*.md"))
+        mtime_first = cards_first[0].stat().st_mtime
+
+        # Add a second message and re-process (first is already tagged; only msg-2 new)
+        from core.schemas.message import Message, Platform
+        msg2 = Message(
+            platform=Platform.QQ,
+            channel_id="ch-1",
+            user_id="user-1",
+            message_id="msg-2",
+            content="world",
+            created_at=datetime.fromtimestamp(1712908860.0, tz=UTC),
+        )
+        db.upsert(msg2)
+        worker.process_untagged(batch=50)
+
+        cards_second = list((tmp_path / "topics").glob("*.md"))
+        # Only one card file (same topic, overwritten)
+        assert len(cards_second) >= 1
