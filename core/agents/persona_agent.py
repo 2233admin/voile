@@ -9,21 +9,20 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.obsidian.writer import ObsidianWriter
 from core.storage.db import Database, MessageRecord, MessageSentiment, MessageTopic
 
 
 class PersonaAgent:
     def __init__(
         self,
-        db_url: str,
-        vault_path: str,
-        channel_id: str,
+        db: Database,
+        channel_id: str | None = None,
+        obsidian_vault: str | None = None,
         window_days: int = 30,
     ) -> None:
-        self.db = Database(db_url)
-        self.writer = ObsidianWriter(vault_path)
+        self.db = db
         self.channel_id = channel_id
+        self.obsidian_vault = obsidian_vault
         self.window_days = window_days
 
     # ------------------------------------------------------------------
@@ -98,26 +97,33 @@ class PersonaAgent:
     # Run methods
     # ------------------------------------------------------------------
 
-    def run_once(self, channel_id: str) -> list[str]:
+    def run_once(self, channel_id: str | None = None) -> list[str]:
         """Build and write profiles for all distinct users in channel_id.
 
         Returns list of user_ids processed.
         """
+        ch = channel_id or self.channel_id
+        if ch is None:
+            return []
+
         with Session(self.db._engine) as session:
             user_ids: list[str] = list(session.scalars(
                 select(MessageRecord.user_id)
-                .where(MessageRecord.channel_id == channel_id)
+                .where(MessageRecord.channel_id == ch)
                 .distinct()
             ))
 
         for user_id in user_ids:
             profile = self.build_profile(user_id)
-            self.writer.write_persona(user_id, profile)
+            if self.obsidian_vault is not None:
+                from core.obsidian.writer import ObsidianWriter
+                writer = ObsidianWriter(self.obsidian_vault)
+                writer.write_persona(user_id, profile)
 
         return user_ids
 
-    def run(self, interval_hours: float = 24) -> None:
-        """Loop: call run_once(self.channel_id) then sleep interval_hours."""
+    def run_forever(self, sleep: float = 86400.0) -> None:
+        """Loop: call run_once() then sleep for sleep seconds."""
         while True:
-            self.run_once(self.channel_id)
-            time.sleep(interval_hours * 3600)
+            self.run_once()
+            time.sleep(sleep)

@@ -162,9 +162,9 @@ def test_run_once_calls_obsidian_writer(tmp_path: Path):
     ]
 
     tracker = DecisionTracker(
-        db_url="sqlite:///:memory:",
-        vault_path=str(tmp_path),
+        Database("sqlite:///:memory:"),
         channel_id="ch-1",
+        obsidian_vault=str(tmp_path),
     )
     # Bypass the date-window query by mocking _fetch_recent_messages directly
     tracker._fetch_recent_messages = lambda days=7: fake_messages  # type: ignore[method-assign]
@@ -195,11 +195,10 @@ def test_run_once_no_decisions(tmp_path: Path):
     )
 
     tracker = DecisionTracker(
-        db_url="sqlite:///:memory:",
-        vault_path=str(tmp_path),
+        db,
         channel_id="ch-1",
+        obsidian_vault=str(tmp_path),
     )
-    tracker.db = db
 
     decisions = tracker.run_once()
     assert decisions == []

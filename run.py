@@ -34,6 +34,8 @@ def main() -> None:
     from core.agents.sentiment_worker import SentimentWorker
     from core.agents.topic_worker import TopicWorker
     from core.agents.link_archiver import LinkArchiver
+    from core.agents.persona_agent import PersonaAgent
+    from core.agents.decision_tracker import DecisionTracker
     from core.ingest.consumer import RedisConsumer
     from core.health import HealthServer
 
@@ -49,6 +51,8 @@ def main() -> None:
         ("sentiment", SentimentWorker(db, obsidian_vault=args.obsidian)),
         ("topic", TopicWorker(db, channel_id=args.channel, obsidian_vault=args.obsidian, ann_addr=ann_addr)),
         ("links", LinkArchiver(db, redis_url=args.redis, obsidian_vault=args.obsidian)),
+        ("persona", PersonaAgent(db, channel_id=args.channel, obsidian_vault=args.obsidian)),
+        ("decision", DecisionTracker(db, channel_id=args.channel, obsidian_vault=args.obsidian)),
     ]
 
     threads = []

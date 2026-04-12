@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from core.agents.persona_agent import PersonaAgent
+from core.storage.db import Database
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -23,9 +24,9 @@ def _make_msg(user_id: str, message_id: str, content: str, hour: int = 10) -> Ma
 def _agent(tmp_path) -> PersonaAgent:
     """Return a PersonaAgent backed by a real in-memory SQLite DB."""
     return PersonaAgent(
-        db_url="sqlite:///:memory:",
-        vault_path=str(tmp_path / "vault"),
+        Database("sqlite:///:memory:"),
         channel_id="ch1",
+        obsidian_vault=str(tmp_path / "vault"),
         window_days=30,
     )
 
@@ -125,15 +126,16 @@ def test_run_once_calls_write_persona(tmp_path):
         MockSession.return_value.__exit__ = MagicMock(return_value=False)
 
         with patch.object(agent, "build_profile", return_value=fake_profile) as mock_build:
-            with patch.object(agent.writer, "write_persona") as mock_write:
+            with patch("core.obsidian.writer.ObsidianWriter") as MockWriter:
+                mock_instance = MockWriter.return_value
                 result = agent.run_once("ch1")
 
     assert sorted(result) == sorted(user_ids)
     assert mock_build.call_count == 3
-    assert mock_write.call_count == 3
-    mock_write.assert_any_call("alice", fake_profile)
-    mock_write.assert_any_call("bob", fake_profile)
-    mock_write.assert_any_call("carol", fake_profile)
+    assert mock_instance.write_persona.call_count == 3
+    mock_instance.write_persona.assert_any_call("alice", fake_profile)
+    mock_instance.write_persona.assert_any_call("bob", fake_profile)
+    mock_instance.write_persona.assert_any_call("carol", fake_profile)
 
 
 # ---------------------------------------------------------------------------

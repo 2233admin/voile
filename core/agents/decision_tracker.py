@@ -12,7 +12,6 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.obsidian.writer import ObsidianWriter
 from core.storage.db import Database, MessageRecord
 
 PROPOSAL_KW = ["提议", "建议", "我觉得我们应该", "要不要", "能不能", "是否"]
@@ -101,12 +100,19 @@ def detect_decision_segment(messages: list[MessageRecord]) -> list[dict[str, Any
 class DecisionTracker:
     """Detects decisions in group chat and logs them to Obsidian."""
 
-    def __init__(self, db_url: str, vault_path: str, channel_id: str) -> None:
-        self.db = Database(db_url)
-        self.writer = ObsidianWriter(vault_path)
+    def __init__(
+        self,
+        db: Database,
+        channel_id: str | None = None,
+        obsidian_vault: str | None = None,
+    ) -> None:
+        self.db = db
         self.channel_id = channel_id
+        self.obsidian_vault = obsidian_vault
 
     def _fetch_recent_messages(self, days: int = 7) -> list[MessageRecord]:
+        if self.channel_id is None:
+            return []
         cutoff = datetime.now(UTC) - timedelta(days=days)
         with Session(self.db._engine) as s:
             return list(
@@ -131,15 +137,18 @@ class DecisionTracker:
                 f"proposal: {decision['proposal']}",
                 f"discussion_count: {decision['discussion_count']}",
             ]
-            self.writer.write_decision(
-                title=decision["title"],
-                discussion=discussion_lines,
-                conclusion=decision["conclusion"],
-            )
+            if self.obsidian_vault is not None:
+                from core.obsidian.writer import ObsidianWriter
+                writer = ObsidianWriter(self.obsidian_vault)
+                writer.write_decision(
+                    title=decision["title"],
+                    discussion=discussion_lines,
+                    conclusion=decision["conclusion"],
+                )
         return decisions
 
-    def run(self, interval_hours: float = 6) -> None:
-        """Loop forever, calling run_once() every interval_hours."""
+    def run_forever(self, sleep: float = 21600.0) -> None:
+        """Loop forever, calling run_once() every sleep seconds."""
         while True:
             self.run_once()
-            time.sleep(interval_hours * 3600)
+            time.sleep(sleep)
