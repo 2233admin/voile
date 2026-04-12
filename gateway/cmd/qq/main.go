@@ -2,9 +2,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -42,6 +44,15 @@ func main() {
 	}
 }
 
+func forward(downstream string, body []byte, logger *slog.Logger) {
+	resp, err := http.Post(downstream, "application/json", bytes.NewReader(body))
+	if err != nil {
+		logger.Warn("forward failed", "err", err)
+		return
+	}
+	resp.Body.Close()
+}
+
 func connect(endpoint, downstream string, logger *slog.Logger) error {
 	conn, _, err := websocket.DefaultDialer.Dial(endpoint, nil)
 	if err != nil {
@@ -76,9 +87,7 @@ func connect(endpoint, downstream string, logger *slog.Logger) error {
 			continue
 		}
 
-		// TODO: forward to Python ingest API (downstream)
-		// forward(downstream, evt, raw)
 		logger.Debug("received", "type", evt.MessageType, "user", evt.UserID, "msg", evt.RawMessage)
-		_ = downstream
+		forward(downstream, raw, logger)
 	}
 }

@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 _URL_RE = re.compile(r"https?://[^\s\u4e00-\u9fff]+")
 
@@ -49,14 +49,11 @@ class Message(BaseModel):
 
     model_config = {"frozen": True}
 
-    @field_validator("urls", mode="before")
-    @classmethod
-    def auto_extract_urls(cls, v: list[str], info: Any) -> list[str]:
-        """If urls not provided, extract from content automatically."""
-        if v:
-            return v
-        content = (info.data or {}).get("content", "")
-        return _URL_RE.findall(content)
+    @model_validator(mode="after")
+    def auto_extract_urls(self) -> "Message":
+        if not self.urls and self.content:
+            object.__setattr__(self, "urls", _URL_RE.findall(self.content))
+        return self
 
     @field_validator("created_at", mode="before")
     @classmethod
