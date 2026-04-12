@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
   python:
@@ -15,7 +16,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
-      - run: ruff check core/ plugins/
+      - run: ruff check core/ plugins/ tests/
       - run: mypy core/
       - run: pytest -q
 
