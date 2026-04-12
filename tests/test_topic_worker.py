@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.agents.topic_worker import TopicWorker
+from core.agents.topic_worker import SIMILARITY_THRESHOLD, TopicWorker
 from core.schemas.message import Message, Platform
 from core.storage.db import Database, MessageTopic
 
@@ -162,3 +163,165 @@ def test_channel_isolation():
 
     channels = {t.channel_id for t in topics}
     assert channels == {"ch-A", "ch-B"}
+
+
+# ---------------------------------------------------------------------------
+# ann integration tests (mock gRPC stub)
+# ---------------------------------------------------------------------------
+
+def _make_stub(results: list[tuple[str, float]]) -> MagicMock:
+    """Build a mock VectorIndexStub."""
+    stub = MagicMock()
+    search_result_list = []
+    for rid, score in results:
+        r = MagicMock()
+        r.id = rid
+        r.score = score
+        search_result_list.append(r)
+    stub.Search.return_value = MagicMock(results=search_result_list)
+    stub.Insert.return_value = MagicMock(ok=True)
+    return stub
+
+
+def _worker_with_ann(stub: MagicMock, ann_addr: str = "localhost:50052") -> TopicWorker:
+    """Return a TopicWorker pre-wired with a mock ann stub."""
+    db = Database("sqlite:///:memory:")
+    worker = TopicWorker(db, ann_addr=ann_addr)
+    _force_tfidf(worker)
+    worker._ann_stub = stub
+    worker._pb2 = MagicMock()
+    worker._ann_ok = True
+    return worker
+
+
+class TestAnnSimilarity:
+    def test_returns_none_when_ann_disabled(self):
+        db = Database("sqlite:///:memory:")
+        worker = TopicWorker(db, ann_addr=None)
+        assert worker._ann_similarity([0.1, 0.2]) is None
+
+    def test_returns_none_when_ann_not_ok(self):
+        db = Database("sqlite:///:memory:")
+        worker = TopicWorker(db, ann_addr="localhost:50052")
+        worker._ann_ok = False
+        assert worker._ann_similarity([0.1, 0.2]) is None
+
+    def test_returns_id_and_score(self):
+        stub = _make_stub([("msg-prev", 0.85)])
+        worker = _worker_with_ann(stub)
+        result = worker._ann_similarity([0.1, 0.2])
+        assert result is not None
+        assert result[0] == "msg-prev"
+        assert result[1] == pytest.approx(0.85)
+
+    def test_returns_none_when_no_results(self):
+        stub = _make_stub([])
+        worker = _worker_with_ann(stub)
+        assert worker._ann_similarity([0.1, 0.2]) is None
+
+    def test_resets_ann_ok_on_exception(self):
+        stub = MagicMock()
+        stub.Search.side_effect = RuntimeError("connection reset")
+        worker = _worker_with_ann(stub)
+        result = worker._ann_similarity([0.1, 0.2])
+        assert result is None
+        assert worker._ann_ok is False
+
+
+class TestAnnInsert:
+    def test_skips_when_not_ok(self):
+        stub = _make_stub([])
+        db = Database("sqlite:///:memory:")
+        worker = TopicWorker(db, ann_addr="localhost:50052")
+        worker._ann_ok = False
+        worker._ann_stub = stub
+        worker._ann_insert("msg-1", [0.1, 0.2])
+        stub.Insert.assert_not_called()
+
+    def test_calls_insert(self):
+        stub = _make_stub([])
+        worker = _worker_with_ann(stub)
+        worker._ann_insert("msg-x", [0.3, 0.4])
+        stub.Insert.assert_called_once()
+
+    def test_resets_ann_ok_on_exception(self):
+        stub = MagicMock()
+        stub.Insert.side_effect = RuntimeError("timeout")
+        worker = _worker_with_ann(stub)
+        worker._ann_insert("msg-x", [0.3, 0.4])
+        assert worker._ann_ok is False
+
+
+class TestProcessUntaggedWithAnn:
+    def test_ann_score_above_threshold_continues_topic(self):
+        """Ann returns high similarity -> messages stay in same topic."""
+        msgs = [
+            _make_msg("msg-1", "topic A start", created_at_ts=1712908800.0),
+            _make_msg("msg-2", "topic A continues", created_at_ts=1712908860.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        # ann returns similarity above threshold for second message
+        stub = _make_stub([("msg-1", SIMILARITY_THRESHOLD + 0.1)])
+        worker = _worker_with_ann(stub)
+        worker.db = db
+
+        worker.process_untagged(batch=50)
+
+        with Session(db._engine) as s:
+            topics = list(s.scalars(select(MessageTopic).order_by(MessageTopic.id)))
+
+        assert len(topics) == 2
+        assert topics[0].topic_label == topics[1].topic_label
+
+    def test_ann_score_below_threshold_creates_new_topic(self):
+        """Ann returns low similarity -> topic drift -> new label."""
+        msgs = [
+            _make_msg("msg-1", "topic A start", created_at_ts=1712908800.0),
+            _make_msg("msg-2", "completely different", created_at_ts=1712908860.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        # ann returns similarity below threshold
+        stub = _make_stub([("msg-1", SIMILARITY_THRESHOLD - 0.1)])
+        worker = _worker_with_ann(stub)
+        worker.db = db
+
+        worker.process_untagged(batch=50)
+
+        with Session(db._engine) as s:
+            topics = list(s.scalars(select(MessageTopic).order_by(MessageTopic.id)))
+
+        assert len(topics) == 2
+        assert topics[0].topic_label != topics[1].topic_label
+
+    def test_ann_insert_called_per_message(self):
+        """Insert is called once per tagged message."""
+        msgs = [
+            _make_msg("msg-1", "hello", created_at_ts=1712908800.0),
+            _make_msg("msg-2", "world", created_at_ts=1712908860.0),
+            _make_msg("msg-3", "foo",   created_at_ts=1712908920.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        stub = _make_stub([("msg-prev", SIMILARITY_THRESHOLD + 0.2)])
+        worker = _worker_with_ann(stub)
+        worker.db = db
+
+        worker.process_untagged(batch=50)
+
+        assert stub.Insert.call_count == 3
+
+    def test_falls_back_to_cosine_when_ann_fails(self):
+        """If ann stub raises, worker falls back to in-process cosine."""
+        msgs = [
+            _make_msg("msg-1", "hello world", created_at_ts=1712908800.0),
+            _make_msg("msg-2", "hello world again", created_at_ts=1712908860.0),
+        ]
+        db = _make_db_with_messages(*msgs)
+        stub = MagicMock()
+        stub.Search.side_effect = RuntimeError("ann down")
+        stub.Insert.side_effect = RuntimeError("ann down")
+        worker = _worker_with_ann(stub)
+        worker.db = db
+
+        # Should not raise; cosine fallback covers it
+        count = worker.process_untagged(batch=50)
+        assert count == 2
