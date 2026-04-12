@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
@@ -21,7 +21,11 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
     "mypy>=1.9",
+    "antlr4-python3-runtime==4.9.3",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["core"]
 
 [tool.ruff]
 line-length = 100
