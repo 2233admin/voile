@@ -1,0 +1,10 @@
+plugin_id: voile_sink
+name: Voile Sink
+desc: Sink QQ/WeChat messages into Voile storage and push URLs to Redis queue
+version: "0.2.0"
+author: 2233admin
+repo: https://github.com/2233admin/voile
+homepage: https://github.com/2233admin/voile
+tags:
+  - storage
+  - archiving

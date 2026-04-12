@@ -1,6 +1,6 @@
-"""XAR-16: AstrBot plugin -- realtime message sink into Voile storage.
+"""XAR-16: AstrBot v3 plugin -- realtime message sink into Voile storage.
 
-Drop into AstrBot plugins/ directory.
+Drop into AstrBot's plugins/ directory.
 Requires: voile core installed (pip install -e /path/to/voile)
 """
 from __future__ import annotations
@@ -9,70 +9,93 @@ import os
 import re
 from datetime import UTC, datetime
 
-# AstrBot plugin contract
-PLUGIN_NAME = "voile_sink"
-PLUGIN_DESC = "Sink QQ/WeChat messages into Voile storage and push URLs to Redis queue"
-PLUGIN_VERSION = "0.1.0"
-PLUGIN_AUTHOR = "2233admin"
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.star import Context, Star, register
+
+PLUGIN_VERSION = "0.2.0"
 
 _URL_RE = re.compile(r"https?://[^\s\u4e00-\u9fff]+")
 
-
-def info() -> dict:
-    return {
-        "name": PLUGIN_NAME,
-        "description": PLUGIN_DESC,
-        "version": PLUGIN_VERSION,
-        "author": PLUGIN_AUTHOR,
-    }
-
-
-async def run(event: dict, context: dict) -> None:
-    """Called by AstrBot on each incoming message event."""
-    from core.schemas import Message, MessageType, Platform
-    from core.storage import Database
-
-    db: Database = context.setdefault("voile_db", Database(
-        os.environ.get("VOILE_DB_URL", "sqlite:///voile.db")
-    ))
-
-    platform_raw = event.get("platform", "qq").lower()
-    try:
-        platform = Platform(platform_raw)
-    except ValueError:
-        return  # unsupported platform -- skip silently
-
-    content: str = event.get("raw_message", "") or event.get("content", "")
-
-    msg = Message(
-        platform=platform,
-        channel_id=str(event.get("group_id") or event.get("channel_id", "dm")),
-        user_id=str(event.get("user_id", "unknown")),
-        message_id=str(event.get("message_id", "")),
-        message_type=MessageType(event.get("message_type", "text")),
-        content=content,
-        raw_payload=event,
-        created_at=datetime.fromtimestamp(
-            float(event.get("time", datetime.now(UTC).timestamp())),
-            tz=UTC,
-        ),
-    )
-
-    inserted = db.upsert(msg)
-
-    if inserted and msg.urls:
-        _push_urls_to_redis(msg.urls, context)
+# AstrBot platform name -> voile Platform value
+_PLATFORM_MAP = {
+    "aiocqhttp": "qq",      # OneBot v11 (NapCatQQ / Lagrange)
+    "nakuru": "qq",
+    "wechat": "wechat",
+    "wecom": "wechat",
+}
 
 
-def _push_urls_to_redis(urls: list[str], context: dict) -> None:
-    try:
-        import redis
+@register(
+    "voile_sink",
+    "2233admin",
+    "Sink QQ/WeChat messages into Voile storage and push URLs to Redis",
+    PLUGIN_VERSION,
+)
+class VoileSink(Star):
+    def __init__(self, context: Context) -> None:
+        super().__init__(context)
+        from core.storage.db import Database
 
-        r: redis.Redis = context.setdefault(
-            "voile_redis",
-            redis.Redis.from_url(os.environ.get("VOILE_REDIS_URL", "redis://localhost:6379/0")),
+        self._db = Database(os.environ.get("VOILE_DB_URL", "sqlite:///voile.db"))
+        self._redis_url = os.environ.get("VOILE_REDIS_URL", "redis://localhost:6379/0")
+        self._redis = None  # lazy
+
+    # ------------------------------------------------------------------
+    # Message handler
+    # ------------------------------------------------------------------
+
+    @filter.all()
+    async def on_message(self, event: AstrMessageEvent) -> None:
+        from core.schemas.message import Message, Platform
+
+        # Platform detection
+        adapter = getattr(event, "platform_meta", None)
+        adapter_name = (adapter.name if adapter else "").lower()
+        platform_val = _PLATFORM_MAP.get(adapter_name, "qq")
+        try:
+            platform = Platform(platform_val)
+        except ValueError:
+            return
+
+        content: str = event.message_str or ""
+        sender_id = str(event.get_sender_id() or "unknown")
+        # session_id encodes channel: group_xxxx for groups, friend_xxxx for DMs
+        channel_id = str(getattr(event, "session_id", None) or "unknown")
+        msg_id = str(getattr(event, "message_id", None) or "")
+        ts = getattr(event, "timestamp", None)
+        created_at = (
+            datetime.fromtimestamp(float(ts), tz=UTC) if ts
+            else datetime.now(UTC)
         )
-        for url in urls:
-            r.lpush("voile:url_queue", url)
-    except Exception:
-        pass  # Redis is best-effort; message already in DB
+
+        urls = _URL_RE.findall(content)
+
+        msg = Message(
+            platform=platform,
+            channel_id=channel_id,
+            user_id=sender_id,
+            message_id=msg_id,
+            content=content,
+            urls=urls or None,
+            created_at=created_at,
+        )
+
+        inserted = self._db.upsert(msg)
+
+        if inserted and urls:
+            self._push_urls(urls)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _push_urls(self, urls: list[str]) -> None:
+        try:
+            import redis
+
+            if self._redis is None:
+                self._redis = redis.Redis.from_url(self._redis_url)
+            for url in urls:
+                self._redis.lpush("voile:url_queue", url)
+        except Exception:
+            pass  # Redis is best-effort; message already in DB
