@@ -63,3 +63,37 @@ class Database:
                 .order_by(MessageRecord.created_at.desc())
                 .limit(limit)
             ))
+
+
+class LinkRecord(Base):
+    __tablename__ = "links"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    url: Mapped[str] = mapped_column(Text, unique=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    obsidian_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
+class MessageTopic(Base):
+    __tablename__ = "message_topics"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    message_id: Mapped[str] = mapped_column(String(255), index=True)
+    channel_id: Mapped[str] = mapped_column(String(255), index=True)
+    topic_label: Mapped[str] = mapped_column(String(500))
+    segment_start: Mapped[str] = mapped_column(String(255))  # message_id of segment start
+    similarity_score: Mapped[float] = mapped_column(default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class MessageSentiment(Base):
+    __tablename__ = "message_sentiments"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    message_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(20))     # positive / negative / neutral
+    score: Mapped[float] = mapped_column(default=0.0)  # confidence [0,1]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
