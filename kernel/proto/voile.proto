@@ -1,0 +1,93 @@
+// XAR-5: Voile kernel gRPC interface specification
+// Rust services expose these; Python/Go call them.
+syntax = "proto3";
+
+package voile.kernel.v1;
+
+option go_package = "github.com/2233admin/voile/gateway/gen/kernel/v1";
+
+// ---------------------------------------------------------------------------
+// TextCleaner: Chinese text normalization (XAR-6)
+// ---------------------------------------------------------------------------
+service TextCleaner {
+    rpc Clean(CleanRequest) returns (CleanResponse);
+    rpc CleanBatch(CleanBatchRequest) returns (CleanBatchResponse);
+}
+
+message CleanRequest {
+    string text = 1;
+    bool extract_urls = 2;  // if true, populate extracted_urls
+}
+
+message CleanResponse {
+    string cleaned_text = 1;
+    repeated string extracted_urls = 2;
+    repeated string sentences = 3;  // sentence-split result
+}
+
+message CleanBatchRequest {
+    repeated CleanRequest items = 1;
+}
+
+message CleanBatchResponse {
+    repeated CleanResponse items = 1;
+    uint32 processed = 2;
+}
+
+// ---------------------------------------------------------------------------
+// VectorIndex: ANN search over message embeddings (XAR-7)
+// ---------------------------------------------------------------------------
+service VectorIndex {
+    rpc Insert(InsertRequest) returns (InsertResponse);
+    rpc BatchInsert(BatchInsertRequest) returns (BatchInsertResponse);
+    rpc Search(SearchRequest) returns (SearchResponse);
+    rpc Delete(DeleteRequest) returns (DeleteResponse);
+}
+
+message Vector {
+    repeated float values = 1;
+    uint32 dim = 2;
+}
+
+message InsertRequest {
+    string id = 1;
+    Vector vector = 2;
+    map<string, string> metadata = 3;
+}
+
+message InsertResponse {
+    bool ok = 1;
+}
+
+message BatchInsertRequest {
+    repeated InsertRequest items = 1;
+}
+
+message BatchInsertResponse {
+    uint32 inserted = 1;
+    uint32 failed = 2;
+}
+
+message SearchRequest {
+    Vector query = 1;
+    uint32 top_k = 2;
+    float threshold = 3;  // min cosine similarity; 0 = no filter
+}
+
+message SearchResult {
+    string id = 1;
+    float score = 2;
+    map<string, string> metadata = 3;
+}
+
+message SearchResponse {
+    repeated SearchResult results = 1;
+}
+
+message DeleteRequest {
+    string id = 1;
+}
+
+message DeleteResponse {
+    bool ok = 1;
+}

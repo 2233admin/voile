@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+    command: redis-server --appendonly yes
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: voile
+      POSTGRES_USER: voile
+      POSTGRES_PASSWORD: voile_dev
+    ports: ["5432:5432"]
+    volumes: ["pg_data:/var/lib/postgresql/data"]
+
+  cleaner:
+    build:
+      context: ./kernel/cleaner
+      dockerfile: Dockerfile
+    ports: ["50051:50051"]
+    restart: unless-stopped
+
+  ann:
+    build:
+      context: ./kernel/ann
+      dockerfile: Dockerfile
+    ports: ["50052:50052"]
+    restart: unless-stopped
+
+  gateway-api:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+      args:
+        CMD: api
+    ports: ["8080:8080"]
+    environment:
+      VOILE_DB_URL: postgres://voile:voile_dev@postgres:5432/voile
+      VOILE_REDIS_URL: redis://redis:6379/0
+    depends_on: [redis, postgres]
+    restart: unless-stopped
+
+  gateway-qq:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+      args:
+        CMD: qq
+    environment:
+      NAPCAT_WS: ws://host.docker.internal:3001
+      DOWNSTREAM: http://gateway-api:8080/ingest/qq
+    depends_on: [gateway-api]
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  pg_data:
