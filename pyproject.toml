@@ -13,6 +13,7 @@ dependencies = [
     "alembic>=1.13",
     "redis>=5.0",
     "aiohttp>=3.9",
+    "grpcio>=1.60",
 ]
 
 [project.optional-dependencies]
