@@ -15,7 +15,7 @@ SIMILARITY_THRESHOLD = 0.5  # below this = topic drift
 
 def _try_import_sentence_transformers() -> Any:
     try:
-        from sentence_transformers import SentenceTransformer  # type: ignore[import]
+        from sentence_transformers import SentenceTransformer
         return SentenceTransformer
     except ImportError:
         return None
@@ -49,11 +49,11 @@ class TopicWorker:
             return [v.tolist() for v in vecs]
 
         # TF-IDF fallback
-        from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import]
+        from sklearn.feature_extraction.text import TfidfVectorizer
 
         vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(2, 4))
         matrix = vectorizer.fit_transform(texts)
-        return matrix.toarray().tolist()
+        return matrix.toarray().tolist()  # type: ignore[no-any-return]
 
     def _cosine(self, a: list[float], b: list[float]) -> float:
         dot = sum(x * y for x, y in zip(a, b))

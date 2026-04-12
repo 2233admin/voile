@@ -3,6 +3,7 @@
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 
 def _slug(text: str) -> str:
@@ -54,7 +55,7 @@ class ObsidianWriter:
         path.write_text(content, encoding="utf-8")
         return path
 
-    def write_persona(self, user_id: str, profile: dict) -> Path | None:
+    def write_persona(self, user_id: str, profile: dict[str, Any]) -> Path | None:
         """Write/update a persona profile to personas/{user_id}.md"""
         if not self.vault.exists():
             return None

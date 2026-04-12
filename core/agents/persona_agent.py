@@ -8,6 +8,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from typing import Any
+
 from core.obsidian.writer import ObsidianWriter
 from core.storage.db import Database, MessageRecord, MessageSentiment, MessageTopic
 
@@ -29,7 +31,7 @@ class PersonaAgent:
     # Profile building
     # ------------------------------------------------------------------
 
-    def build_profile(self, user_id: str) -> dict:
+    def build_profile(self, user_id: str) -> dict[str, Any]:
         """Aggregate last window_days of messages for user_id into a Core profile."""
         cutoff = datetime.now(tz=UTC) - timedelta(days=self.window_days)
 

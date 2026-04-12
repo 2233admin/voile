@@ -7,6 +7,8 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from typing import Any
+
 from core.schemas.message import Message, MessageType, Platform
 from core.storage.db import Database
 
@@ -23,7 +25,7 @@ def _map_type(raw: int) -> MessageType:
     return _TYPE_MAP.get(raw, MessageType.UNKNOWN)
 
 
-def _build_message(row: dict) -> Message:
+def _build_message(row: dict[str, Any]) -> Message:
     """Build a normalized Message from a raw WeChatMsg row dict."""
     is_sender = int(row["IsSender"]) == 1
     talker = str(row["StrTalker"])
@@ -74,7 +76,7 @@ def import_sqlite(
     conn.row_factory = sqlite3.Row
     try:
         query = "SELECT MsgSvrId, Type, IsSender, CreateTime, StrContent, StrTalker FROM MSG"
-        params: list = []
+        params: list[Any] = []
         if since is not None:
             query += " WHERE CreateTime >= ?"
             params.append(since)

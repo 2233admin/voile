@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -45,7 +46,7 @@ class SentimentWorker:
     def __init__(self, db: Database, obsidian_vault: str | None = None):
         self.db = db
         self.obsidian_vault = obsidian_vault
-        self._pipeline = None
+        self._pipeline: Any = None
         self._backend: str = self._detect_backend()
 
     # ------------------------------------------------------------------
@@ -54,7 +55,7 @@ class SentimentWorker:
 
     def _detect_backend(self) -> str:
         try:
-            from transformers import pipeline as hf_pipeline  # type: ignore
+            from transformers import pipeline as hf_pipeline
             self._pipeline = hf_pipeline(
                 "text-classification",
                 model="IDEA-CCNL/Erlangshen-Roberta-110M-Sentiment",
@@ -63,7 +64,7 @@ class SentimentWorker:
         except Exception:
             pass
         try:
-            import snownlp  # type: ignore  # noqa: F401
+            import snownlp  # noqa: F401
             return "snownlp"
         except Exception:
             pass
@@ -87,7 +88,7 @@ class SentimentWorker:
             return "neutral", score
 
         if self._backend == "snownlp":
-            from snownlp import SnowNLP  # type: ignore
+            from snownlp import SnowNLP
             s = SnowNLP(text)
             sentiment: float = s.sentiments
             if sentiment > 0.6:
@@ -131,7 +132,7 @@ class SentimentWorker:
     # Reporting
     # ------------------------------------------------------------------
 
-    def daily_report(self, channel_id: str, date: str) -> dict:
+    def daily_report(self, channel_id: str, date: str) -> dict[str, int]:
         """Aggregate sentiment for channel on date (YYYY-MM-DD).
 
         Returns {positive: N, negative: N, neutral: N}.

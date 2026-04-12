@@ -11,6 +11,8 @@ from html.parser import HTMLParser
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from typing import Any
+
 from core.storage.db import Database, LinkRecord
 
 
@@ -22,7 +24,7 @@ class _TitleParser(HTMLParser):
         self._in_title = False
         self.title = ""
 
-    def handle_starttag(self, tag: str, attrs: list) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag.lower() == "title":
             self._in_title = True
 
@@ -48,7 +50,7 @@ class LinkArchiver:
         self.redis_url = redis_url
         self.obsidian_vault = obsidian_vault
 
-    def fetch_metadata(self, url: str) -> dict:
+    def fetch_metadata(self, url: str) -> dict[str, Any]:
         """Call Go archiver service. Returns {"title":..,"summary":..} or {"error":..}"""
         try:
             payload = json.dumps({"url": url}).encode()
@@ -59,7 +61,7 @@ class LinkArchiver:
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read().decode())
+                return json.loads(resp.read().decode())  # type: ignore[no-any-return]
         except Exception:
             pass
 
@@ -132,7 +134,7 @@ class LinkArchiver:
             item = r.brpop("voile:url_queue", timeout=0.5)
             if item is None:
                 break
-            _, raw = item
+            _, raw = item  # type: ignore[misc]
             url = raw.decode() if isinstance(raw, bytes) else raw
             self.archive(url)
             count += 1

@@ -11,6 +11,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from typing import Any
+
 from core.obsidian.writer import ObsidianWriter
 from core.storage.db import Database, MessageRecord
 
@@ -42,7 +44,7 @@ def _extract_conclusion(messages: list[MessageRecord]) -> str:
     return ""
 
 
-def detect_decision_segment(messages: list[MessageRecord]) -> list[dict]:
+def detect_decision_segment(messages: list[MessageRecord]) -> list[dict[str, Any]]:
     """Sliding window of 20 messages; yield decision dicts where
     the window contains >=1 PROPOSAL_KW hit AND >=1 CONCLUSION_KW hit.
 
@@ -50,7 +52,7 @@ def detect_decision_segment(messages: list[MessageRecord]) -> list[dict]:
         title, proposal, discussion_count, conclusion,
         participants, message_ids, start_at, end_at
     """
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
     seen_end_ids: set[str] = set()  # deduplicate overlapping windows
 
     n = len(messages)
@@ -117,7 +119,7 @@ class DecisionTracker:
                 )
             )
 
-    def run_once(self) -> list[dict]:
+    def run_once(self) -> list[dict[str, Any]]:
         """Fetch last 7 days of messages, detect decisions, write to Obsidian.
 
         Returns the list of decision dicts that were written.

@@ -60,4 +60,4 @@ class Message(BaseModel):
     def ensure_utc(cls, v: Any) -> datetime:
         if isinstance(v, int | float):
             return datetime.fromtimestamp(v, tz=UTC)
-        return v
+        return v  # type: ignore[no-any-return]
