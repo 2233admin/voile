@@ -1,0 +1,23 @@
+name: voile-assistant
+version: "1.0"
+
+controller:
+  tool_format: native
+
+system_prompt_file: prompts/system.md
+skill_mode: dynamic
+
+tools:
+  - { name: python,     type: builtin }
+  - { name: bash,       type: builtin }
+  - { name: think,      type: builtin }
+  - { name: ask_user,   type: builtin }
+  - { name: scratchpad, type: builtin }
+
+output:
+  type: stdout
+  controller_direct: true
+
+memory:
+  embedding:
+    provider: model2vec
