@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = "[::]:50051".parse()?;
     info!("TextCleaner gRPC listening on {addr}");
     Server::builder()
-        .add_service(TextCleanerServer::new(CleanerService::default()))
+        .add_service(TextCleanerServer::new(CleanerService))
         .serve(addr)
         .await?;
     Ok(())
