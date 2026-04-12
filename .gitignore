@@ -36,3 +36,4 @@ kernel/**/target/
 # OS
 .DS_Store
 Thumbs.db
+.omc/
