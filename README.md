@@ -15,7 +15,7 @@
 
 ---
 
-Voile ingests QQ and WeChat messages, normalizes them into a unified schema,
+Voile ingests QQ messages (and WeChat via internal tools), normalizes them into a unified schema,
 and compiles them into structured knowledge -- topic maps, persona profiles,
 decision logs, and link archives -- stored in Obsidian and queryable via gRPC.
 
@@ -23,7 +23,7 @@ decision logs, and link archives -- stored in Obsidian and queryable via gRPC.
 
 ```
 Real-time Collection:
-[NapCatQQ]  [WeFlow]
+[NapCatQQ]  [WeChat (internal)]
      |           |
   [Go: QQ gw] [Go: WeChat sync]
           \       /
@@ -35,7 +35,6 @@ Real-time Collection:
 
 Historical Import:
 [QQ nt_msg.db] --decrypt--> [scripts/decrypt_qq_db.py]
-[WeChat DB]    --export-->  [WeChatMsg]
               |
               v
 
@@ -73,8 +72,8 @@ voile/
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| **Real-time Collection** | QQ/WeChat message streaming via OneBot/WeFlow | ✅ Done |
-| **Historical Import** | QQ/WeChat local database decryption & import | ✅ Done |
+| **Real-time Collection** | QQ message streaming via OneBot | ✅ Done |
+| **Historical Import** | QQ local database decryption & import | ✅ Done |
 | **Storage Foundation** | Unified schema, PostgreSQL, SQLAlchemy ORM | ✅ Done |
 | **Analysis Pipeline** | Topic extraction, sentiment, persona tracking | ✅ Done |
 | **Knowledge Archive** | Obsidian vault integration, decision logs | ✅ Done |
@@ -114,11 +113,8 @@ Voile supports multiple message ingestion methods:
 - Supports text, images, files, and rich media
 - Setup: `docker compose --profile qq up -d`
 
-**WeChat (via WeFlow)**
-- HTTP API for WeChat messages
-- Real-time sync from WeChat desktop client
-- Supports individual and group chats
-- See [WeFlow integration guide](https://github.com/greycodee/wechat-backup)
+**WeChat**
+- Internal integration (contact team for access)
 
 ### 📚 Historical Message Import
 
@@ -145,10 +141,6 @@ python scripts/decrypt_qq_db.py <QQ号> <密钥>
 
 **Technical details:** [docs/QQ_DATABASE_DECRYPT.md](docs/QQ_DATABASE_DECRYPT.md)
 
-**WeChat History Export**
-
-Use [WeChatMsg](https://github.com/LC044/WeChatMsg) to export WeChat history, then import to Voile.
-
 ### 🔄 Import Pipeline
 
 ```
@@ -163,8 +155,8 @@ Integrates with existing open-source projects -- no reinventing wheels:
 
 - [NapCatQQ](https://github.com/NapNeko/NapCatQQ) -- OneBot v11 QQ adapter
 - [AstrBot](https://github.com/Soulter/AstrBot) -- plugin host for message events
-- [WeFlow](https://github.com/greycodee/wechat-backup) -- WeChat HTTP API
-- [WeChatMsg](https://github.com/LC044/WeChatMsg) -- WeChat history export
+
+WeChat integration uses internal tools (contact team for access).
 
 ## Linear board
 
