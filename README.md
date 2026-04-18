@@ -22,6 +22,7 @@ decision logs, and link archives -- stored in Obsidian and queryable via gRPC.
 ## Architecture
 
 ```
+Real-time Collection:
 [NapCatQQ]  [WeFlow]
      |           |
   [Go: QQ gw] [Go: WeChat sync]
@@ -30,6 +31,15 @@ decision logs, and link archives -- stored in Obsidian and queryable via gRPC.
               |
     [Python: AstrBot plugin]  <-- message sink (XAR-16)
               |
+              v
+
+Historical Import:
+[QQ nt_msg.db] --decrypt--> [scripts/decrypt_qq_db.py]
+[WeChat DB]    --export-->  [WeChatMsg]
+              |
+              v
+
+Unified Pipeline:
     [Python: core.storage]    <-- SQLAlchemy, SQLite/Postgres
               |
      +---------+---------+
@@ -45,22 +55,31 @@ persona / decision  VectorIndex gRPC :50052
 
 ```
 voile/
--- core/          Python: schemas, storage, obsidian writer, analysis agents
--- gateway/       Go: QQ gateway, WeChat sync, unified REST API, link fetcher
--- kernel/        Rust: text cleaner + ANN engine (gRPC)
--- kernel/proto/  voile.proto -- single source of truth for all gRPC interfaces
--- plugins/       AstrBot plugin: astrbot_plugin_voile
--- assets/        SVG logo and static assets
--- docs/          Architecture and development guides
+├── core/          Python: schemas, storage, obsidian writer, analysis agents
+├── gateway/       Go: QQ gateway, WeChat sync, unified REST API, link fetcher
+├── kernel/        Rust: text cleaner + ANN engine (gRPC)
+├── kernel/proto/  voile.proto -- single source of truth for all gRPC interfaces
+├── plugins/       AstrBot plugin: astrbot_plugin_voile
+├── scripts/       Utility scripts for message import and database operations
+│   ├── decrypt_qq_db.py    # QQ database decryption tool
+│   ├── decrypt_qq_db.sh    # Bash version
+│   └── README.md           # Quick start guide
+├── docs/          Architecture and development guides
+│   └── QQ_DATABASE_DECRYPT.md  # Complete QQ decryption documentation
+└── assets/        SVG logo and static assets
 ```
 
-## Phases
+## Features & Status
 
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 1 | Message ingestion + storage foundation | Done |
-| 2 | Analysis and archiving pipeline | Done |
-| 3 | Persona, decision tracking, CI/CD | In Progress |
+| Feature | Description | Status |
+|---------|-------------|--------|
+| **Real-time Collection** | QQ/WeChat message streaming via OneBot/WeFlow | ✅ Done |
+| **Historical Import** | QQ/WeChat local database decryption & import | ✅ Done |
+| **Storage Foundation** | Unified schema, PostgreSQL, SQLAlchemy ORM | ✅ Done |
+| **Analysis Pipeline** | Topic extraction, sentiment, persona tracking | ✅ Done |
+| **Knowledge Archive** | Obsidian vault integration, decision logs | ✅ Done |
+| **Vector Search** | Rust-based ANN engine via gRPC | 🚧 In Progress |
+| **CI/CD & Monitoring** | Automated testing, deployment, observability | 🚧 In Progress |
 
 ## Quick start
 
@@ -83,16 +102,60 @@ ruff check core/ plugins/ tests/
 mypy core/
 ```
 
-## QQ History Import
+## Message Sources
 
-To import historical QQ messages from local database:
+Voile supports multiple message ingestion methods:
 
-1. **Extract database key** using [qq-win-db-key](https://github.com/yllhwa/qq-win-db-key)
-2. **Decrypt database** with our automated script:
-   ```bash
-   python scripts/decrypt_qq_db.py <QQ号> <密钥>
-   ```
-3. See [docs/QQ_DATABASE_DECRYPT.md](docs/QQ_DATABASE_DECRYPT.md) for detailed guide
+### 📱 Real-time Message Collection
+
+**QQ (via NapCatQQ)**
+- OneBot v11 protocol adapter
+- Real-time message streaming
+- Supports text, images, files, and rich media
+- Setup: `docker compose --profile qq up -d`
+
+**WeChat (via WeFlow)**
+- HTTP API for WeChat messages
+- Real-time sync from WeChat desktop client
+- Supports individual and group chats
+- See [WeFlow integration guide](https://github.com/greycodee/wechat-backup)
+
+### 📚 Historical Message Import
+
+**QQ Local Database**
+
+Import years of QQ chat history from local encrypted database:
+
+```bash
+# 1. Extract encryption key (Windows only, requires admin)
+git clone https://github.com/yllhwa/qq-win-db-key.git
+cd qq-win-db-key
+.\windows_ntqq_get_key.ps1  # Follow prompts to login QQ
+
+# 2. Decrypt and import to Voile
+cd /path/to/voile
+python scripts/decrypt_qq_db.py <QQ号> <密钥>
+```
+
+**What you get:**
+- ✅ All private chat messages (C2C)
+- ✅ All group chat messages
+- ✅ Message metadata (timestamps, senders, types)
+- ✅ Ready for Voile analysis pipeline
+
+**Technical details:** [docs/QQ_DATABASE_DECRYPT.md](docs/QQ_DATABASE_DECRYPT.md)
+
+**WeChat History Export**
+
+Use [WeChatMsg](https://github.com/LC044/WeChatMsg) to export WeChat history, then import to Voile.
+
+### 🔄 Import Pipeline
+
+```
+[Encrypted DB] → [Decrypt Script] → [SQLite] → [Voile Importer] → [PostgreSQL] → [Analysis]
+```
+
+All imported messages are normalized into Voile's unified schema and processed through the same analysis pipeline as real-time messages.
 
 ## Dependencies
 
