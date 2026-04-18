@@ -23,6 +23,13 @@ kernel/**/target/
 *.sqlite
 *.sqlite3
 
+# QQ decrypt sensitive files
+qq_decrypt_*/
+nt_msg*.db
+decrypt_*.sql
+*_decrypted.db
+*_clean.db
+
 # Env
 .env
 .env.*
