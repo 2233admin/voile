@@ -83,6 +83,17 @@ ruff check core/ plugins/ tests/
 mypy core/
 ```
 
+## QQ History Import
+
+To import historical QQ messages from local database:
+
+1. **Extract database key** using [qq-win-db-key](https://github.com/yllhwa/qq-win-db-key)
+2. **Decrypt database** with our automated script:
+   ```bash
+   python scripts/decrypt_qq_db.py <QQ号> <密钥>
+   ```
+3. See [docs/QQ_DATABASE_DECRYPT.md](docs/QQ_DATABASE_DECRYPT.md) for detailed guide
+
 ## Dependencies
 
 Integrates with existing open-source projects -- no reinventing wheels:
