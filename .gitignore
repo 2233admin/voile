@@ -44,3 +44,15 @@ decrypt_*.sql
 .DS_Store
 Thumbs.db
 .omc/
+
+# 临时归档
+.archive/
+
+# 临时脚本（根目录）
+/decrypt_*.sql
+/decrypt_*.py
+/test_*.py
+/test_*.sh
+/collect_*.py
+/update_*.py
+/import_*.py
