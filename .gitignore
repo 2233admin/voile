@@ -56,3 +56,4 @@ Thumbs.db
 /collect_*.py
 /update_*.py
 /import_*.py
+.repowise/
